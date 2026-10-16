@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deadlock Blind Draft</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand-wrap">
+      <span class="brand-title">Deadlock Blind Draft</span>
+      <span class="mode-badge" id="modeBadge">2 × 2</span>
+      <span class="phase-indicator-badge" id="phaseIndicatorBadge">Драфт персонажей</span>
+      <span class="mode-badge" id="roundBadge" style="display: none;">Раунд 1</span>
+      <span class="step-counter-badge" id="stepCounterBadge">Ход 1 из 8</span>
+    </div>
+
+    <div class="controls-wrap">
+      <button class="btn btn-command" id="btnCopyCommandsHeader" title="Скопировать консольные команды серии">📋 Команды</button>
+      <button class="btn" id="btnUndo" title="Отменить последнее действие">↩ Отменить</button>
+      <button class="btn btn-danger" id="btnResetRound" title="Сбросить текущий раунд предметов" style="display: none;">↺ Сброс раунда</button>
+      <button class="btn" id="btnExport" title="Экспорт матча в JSON">⬇ Экспорт</button>
+      <button class="btn" id="btnImport" title="Импорт матча из JSON">⬆ Импорт</button>
+      <input type="file" id="importFileInput" accept=".json" style="display: none;">
+      <button class="btn" id="btnNewMatch" title="Начать полностью новую Bo5 серию с выбора героев">⚡ Новый матч</button>
+    </div>
+  </header>
+
+  <!-- BANNER FOR COMPLETING CHARACTER DRAFT OR ROUND WINNER -->
+  <div id="actionFinishedBar" style="display: none;">
+    <div class="round-finished-box">
+      <div>
+        <h3 style="font-size: 1.05rem; font-weight: 800; color: #f8fafc;" id="actionBannerHeading">Драфт завершён!</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;" id="actionBannerSub">Выберите действие:</p>
+      </div>
+      <div class="round-win-actions">
+        <button class="btn btn-command" id="btnCopyCommandsRound" style="display: none;">📋 Копировать команды</button>
+        <button class="btn btn-accent" id="btnStartItemDraft" style="display: none;">⚔️ Начать драфт предметов (Раунд 1) ➔</button>
+        <button class="btn btn-team1-win" id="btnWinTeam1" style="display: none;">🏆 Победа Команды 1</button>
+        <button class="btn btn-team2-win" id="btnWinTeam2" style="display: none;">🏆 Победа Команды 2</button>
+        <button class="btn btn-accent" id="btnNextRound" style="display: none;">➡️ Следующий раунд</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <main class="main-layout">
+    
+    <!-- LEFT: TEAM 1 -->
+    <section class="team-panel team1" id="team1Panel">
+      <div class="team-header">
+        <div class="team-name-box">
+          <h2>THE HIDDEN KING</h2>
+        </div>
+        <div class="team-score-box">
+          <div class="score-circle" id="t1_score_1"></div>
+          <div class="score-circle" id="t1_score_2"></div>
+          <div class="score-circle" id="t1_score_3"></div>
+        </div>
+      </div>
+
+      <div class="team-resources" id="t1Resources" aria-label="Ресурсы команды 1"></div>
+
+      <div class="team-turn-banner" id="t1TurnBanner">
+        <span class="pulse-dot"></span>
+        <span id="t1TurnText">ВЫБОР ХОДА</span>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span id="t1RosterTitle">Выбранные персонажи</span>
+          <span id="t1RosterCounter">0/2</span>
+        </div>
+        <div id="t1RosterContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span id="t1BansTitle">Баны персонажей</span>
+          <span id="t1BansCounter">0/2</span>
+        </div>
+        <div class="bans-container" id="t1BansContainer"></div>
+      </div>
+    </section>
+
+    <!-- CENTER: ACTIVE POOL -->
+    <section class="pool-panel">
+      <div class="progression-banner">
+        <div class="progression-left">
+          <span class="progression-badge" id="progressionBadge">ДРАФТ ПЕРСОНАЖЕЙ</span>
+          <span class="progression-desc" id="progressionDesc">Случайный пул героев на всю серию Bo5</span>
+        </div>
+        <div class="grid-counter-badge" id="gridCounterBadge">Доступно: 16</div>
+      </div>
+
+      <div class="pool-toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="searchInput" placeholder="Поиск..." autocomplete="off">
+        </div>
+
+        <button class="btn" id="btnRerollHeroPool" style="display: none;" title="Сгенерировать другой случайный пул героев до начала драфта">🎲 Новый пул героев</button>
+
+        <div class="filter-group" id="categoryFilterGroup" style="display: none;">
+          <button class="filter-btn active" data-cat="all">Все</button>
+          <button class="filter-btn" data-cat="Gun">Оружие</button>
+          <button class="filter-btn" data-cat="Vitality">Выживаемость</button>
+          <button class="filter-btn" data-cat="Spirit">Способности</button>
+        </div>
+
+        <div class="filter-group" id="tierFilterGroup" style="display: none;">
+          <button class="filter-btn active" data-tier="all">Все тиры</button>
+          <button class="filter-btn" data-tier="1">T1</button>
+          <button class="filter-btn" data-tier="2">T2</button>
+          <button class="filter-btn" data-tier="3">T3</button>
+          <button class="filter-btn" data-tier="4">T4</button>
+        </div>
+      </div>
+
+      <div id="scoutingPanel" class="scouting-panel" style="display:none;"></div>
+      <div class="items-grid-container">
+        <div class="items-grid" id="itemsGrid"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: TEAM 2 -->
+    <section class="team-panel team2" id="team2Panel">
+      <div class="team-header">
+        <div class="team-name-box">
+          <h2>THE ARCHMOTHER</h2>
+        </div>
+        <div class="team-score-box">
+          <div class="score-circle" id="t2_score_1"></div>
+          <div class="score-circle" id="t2_score_2"></div>
+          <div class="score-circle" id="t2_score_3"></div>
+        </div>
+      </div>
+
+      <div class="team-resources" id="t2Resources" aria-label="Ресурсы команды 2"></div>
+
+      <div class="team-turn-banner" id="t2TurnBanner">
+        <span class="pulse-dot"></span>
+        <span id="t2TurnText">ВЫБОР ХОДА</span>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span id="t2RosterTitle">Выбранные персонажи</span>
+          <span id="t2RosterCounter">0/2</span>
+        </div>
+        <div id="t2RosterContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          <span id="t2BansTitle">Баны персонажей</span>
+          <span id="t2BansCounter">0/2</span>
+        </div>
+        <div class="bans-container" id="t2BansContainer"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM HISTORY -->
+  <footer class="history-drawer">
+    <span class="history-label" id="historyLabel">История драфта:</span>
+    <div id="historyList" style="display: flex; gap: 8px;">
+      <span style="color: var(--text-dim);">Ходы ещё не сделаны</span>
+    </div>
+  </footer>
+
+  <!-- HERO & ABILITY ASSIGNMENT MODAL -->
+  <div class="modal-overlay" id="heroAssignModal" style="display: none;">
+    <div class="modal-card">
+      <div>
+        <h2 class="modal-title" id="assignModalTitle">Назначение предмета</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;" id="assignModalSub">Выберите героя, который получит этот предмет:</p>
+      </div>
+
+      <!-- ITEM DETAILS CARD -->
+      <div class="assign-item-showcase">
+        <img id="assignItemImg" src="" alt="" class="assign-item-showcase-img">
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+            <div id="assignItemName" class="assign-item-showcase-name"></div>
+            <div style="display:flex; gap:4px;">
+              <div id="assignItemBrawlTag" style="display:none;" class="card-street-brawl-badge">★ STREET BRAWL</div>
+              <div id="assignItemTag" style="display:none; font-size:0.65rem; background:rgba(192,132,252,0.25); color:#e9d5ff; border:1px solid #c084fc; padding:1px 6px; border-radius:3px; font-weight:800;">⚡ ТРЕБУЕТ СЛОТ</div>
+            </div>
+          </div>
+          <div id="assignItemMeta" class="assign-item-showcase-meta"></div>
+          <div id="assignItemUpgradeNotice" class="assign-item-showcase-upgrade" style="display:none;"></div>
+        </div>
+      </div>
+      
+      <!-- DEADLOCK INCOMPATIBILITY WARNING -->
+      <div id="assignModalDeadlock" style="display: none;"></div>
+      <button id="rerollPendingPickBtn" class="btn btn-accent" style="width:100%; justify-content:center; margin: 10px 0 4px;" onclick="rerollPendingPick()">🎲 Зарероллить этот предмет</button>
+
+      <!-- STEP 1: HERO SELECTION -->
+      <div id="assignStepHero">
+        <div class="hero-assign-grid" id="heroAssignOptions"></div>
+      </div>
+
+      <!-- STEP 2: ABILITY SLOT SELECTION -->
+      <div id="assignStepAbility" style="display: none; text-align: left;">
+        <div style="background: rgba(147, 51, 234, 0.12); border: 1px solid rgba(192, 132, 252, 0.35); padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; color: #f3e8ff;">
+          Предмет привязывается к умению героя <strong id="assignSelectedHeroName" style="color:#fff;"></strong>. Выберите способность:
+        </div>
+
+        <div class="ability-slots-grid">
+          <button class="ability-slot-btn" onclick="selectAbilitySlot(0)">
+            <span class="ability-slot-num">Слот 0</span>
+            <span class="ability-slot-name">1-я способность</span>
+          </button>
+          <button class="ability-slot-btn" onclick="selectAbilitySlot(1)">
+            <span class="ability-slot-num">Слот 1</span>
+            <span class="ability-slot-name">2-я способность</span>
+          </button>
+          <button class="ability-slot-btn" onclick="selectAbilitySlot(2)">
+            <span class="ability-slot-num">Слот 2</span>
+            <span class="ability-slot-name">3-я способность</span>
+          </button>
+          <button class="ability-slot-btn" onclick="selectAbilitySlot(3)">
+            <span class="ability-slot-num">Слот 3</span>
+            <span class="ability-slot-name">4-я способность (Ульт)</span>
+          </button>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <button class="btn" onclick="backToHeroStep()">« Назад к выбору героя</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CONSOLE COMMANDS MODAL -->
+  <div class="modal-overlay" id="commandsModal" style="display: none;">
+    <div class="modal-card" style="max-width: 720px; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="modal-title" style="font-size: 1.25rem;">Консольные команды серии</h2>
+        <button class="btn" style="padding: 4px 10px;" onclick="closeCommandsModal()">✕</button>
+      </div>
+
+      <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 6px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+        ℹ️ Для каждого героя сформирована накопительная строка команд через точку с запятой (<code>;</code>), включая уровень и золото <code>givelevelupgold</code>, все выданные в драфте предметы и легендарные предметы Street Brawl.
+      </div>
+
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-command" onclick="copyAllCommandsToClipboard()">📋 Скопировать всю серию</button>
+        <button class="btn" onclick="copyCurrentRoundCommandsToClipboard()">📋 Скопировать только текущий раунд</button>
+      </div>
+
+      <pre id="commandsTextarea" style="background: #080b12; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 0.78rem; color: #a5f3fc; max-height: 380px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6; user-select: text;"></pre>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button class="btn" onclick="closeCommandsModal()">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODE SELECTION MODAL -->
+  <div class="modal-overlay" id="modeModal" style="display: none;">
+    <!-- Отдельный декоративный фон главного меню; не использует игровое поле -->
+    <div class="mode-menu-backdrop-art" aria-hidden="true"><div class="mode-art-orb"></div><div class="mode-art-ring"></div><div class="mode-art-grid"></div><div class="mode-art-glow"></div></div>
+    <div class="mode-bg-floating" id="modeFloatingBg" aria-hidden="true"></div>
+
+    <div class="modal-card">
+      <div class="mode-menu-heading">
+        <div class="mode-menu-kicker"><span class="mode-menu-live-dot"></span> CUSTOM MATCH SETUP</div>
+        <h2 class="modal-title">DEADLOCK <span>BLIND DRAFT</span></h2>
+        <p class="mode-menu-subtitle">Выберите формат матча</p>
+        <div class="mode-menu-meta"><span>СЕРИЯ BO5</span><i></i><span>ДРАФТ ГЕРОЕВ И ПРЕДМЕТОВ</span></div>
+      </div>
+      
+      <div class="mode-select-grid">
+        <button class="mode-card-btn" onclick="selectMatchMode('1x1')"><span class="big-num">1 × 1</span></button>
+        <button class="mode-card-btn" onclick="selectMatchMode('2x2')"><span class="big-num">2 × 2</span></button>
+        <button class="mode-card-btn" onclick="selectMatchMode('3x3')"><span class="big-num">3 × 3</span></button>
+        <button class="mode-card-btn" onclick="selectMatchMode('4x4')"><span class="big-num">4 × 4</span></button>
+      </div>
+
+      <button class="mode-help-btn" onclick="openHowToPlayModal()"><span class="mode-help-icon">?</span><span><b>Как играть?</b><small>Правила и порядок драфта</small></span><span class="mode-help-arrow">↗</span></button>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY MODAL -->
+  <div class="modal-overlay" id="howToPlayModal" style="display: none; z-index: 10000;">
+    <div class="modal-card" style="max-width: 1500px; width: 95%; max-height: 85vh; overflow-y: auto; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <h2 class="modal-title">📖 Как играть?</h2>
+        <button class="btn" onclick="closeHowToPlayModal()">✕</button>
+      </div>
+            <p style="color: var(--text-muted); margin: 8px 0 20px;">
+        DEADLOCK BLIND DRAFT — кастомный режим с драфтом героев и предметов.
+        После выполнения каждой игровой цели матч останавливается и начинается следующая стадия драфта.
+      </p>
+
+      <div class="how-to-play-content" style="display: grid; gap: 16px;">
+        <section>
+          <h3>🎯 1. Формат серии и победа</h3>
+          <p>Это кастомный <b>Deadlock Blind Draft Bo5</b>. Выберите формат команд <b>1×1, 2×2, 3×3 или 4×4</b>. Серия состоит максимум из пяти игровых раундов; после каждого раунда вернитесь на сайт, отметьте победителя и перейдите дальше.</p>
+          <p><b>Очки за цели:</b> уничтожение вражеской <b>T1</b> даёт 1 очко, уничтожение вражеского <b>шагохода (Walker)</b> — ещё 1 очко, а уничтожение <b>Патрона</b> — третье очко. Повторное уничтожение T1 или шагохода не приносит дополнительных очков. Побеждает команда, первой набравшая <b>3 очка</b>.</p>
+        </section>
+
+        <section>
+          <h3>🦸 2. Драфт героев — один раз перед серией</h3>
+          <p><b>Сначала баны:</b> команды по очереди банят по <b>2 героя</b> каждая. Забаненные герои недоступны для выбора в этой серии.</p>
+          <p><b>Затем пики:</b> команды по очереди выбирают героев для всех своих игроков. Каждый выбранный герой закрепляется за игроком и <b>не может быть выбран повторно до конца Bo5</b>. Герои остаются теми же во всех раундах серии.</p>
+        </section>
+
+        <section>
+          <h3>🧩 3. Общий пул и драфт предметов</h3>
+          <p><b>Одна общая сетка:</b> обе команды выбирают из одного пула предметов и ходят по очереди согласно индикатору хода. Каждый пик нужно назначить конкретному герою.</p>
+          <p><b>Уникальность на всю серию:</b> один и тот же предмет нельзя получить повторно в пределах Bo5. Выбранные предметы больше не доступны другой команде. Забаненный обычный предмет навсегда удаляется из пула текущей серии.</p>
+          <p><b>Тиры открываются постепенно:</b> в первом раунде доступны предметы T1–T2, во втором — T3, а с третьего — T4. Прогрессия тиров продолжается между раундами и не сбрасывается.</p>
+          <p><b>Количество предметов:</b> в раундах <b>1, 2 и 4</b> каждый герой получает по <b>2 предмета</b>, а в раундах <b>3 и 5 — по 3 предмета</b>. Общий лимит — <b>12 предметов на героя за серию</b>; если герой достиг лимита, дополнительные предметы ему недоступны.</p>
+          <p><b>Активные предметы:</b> у одного героя может быть не более <b>4 активных предметов</b>. Учитывайте это при выборе.</p>
+        </section>
+
+        <section>
+          <h3>🔎 4. Разведка: раскрытие тира или типа</h3>
+          <p><b>Начальное раскрытие:</b> при подготовке сетки примерно <b>60–70% карточек</b> изначально показывают одну характеристику — тир <i>или</i> категорию предмета. Как правило, у карточки раскрыта только одна из них. Начальное раскрытие бесплатно и не расходует жетоны.</p>
+          <p><b>Жетоны команды:</b> на всю серию каждая команда получает <b>3 жетона на каждого игрока</b>. Используйте жетон, чтобы раскрыть у выбранного предмета тир или категорию. Раскрытая информация общая — её видят обе команды.</p>
+          <p><b>Исключение:</b> предметы Street Brawl не участвуют в разведке. Разведка не означает, что предмет уже выбран или забанен: она лишь раскрывает информацию о карточке.</p>
+        </section>
+
+        <section>
+          <h3>🔄 5. Перебросы карточек</h3>
+          <p><b>Запас на раунд:</b> в каждом раунде команда получает количество перебросов, равное числу игроков в команде. Неиспользованные перебросы не являются дополнительными пиками.</p>
+          <p><b>Когда можно использовать:</b> переброс доступен только во время хода выбора вашей команды. Он заменяет карточку случайным предметом <b>того же тира</b>.</p>
+          <p><b>Ограничения:</b> одну карточку можно перебросить только один раз за серию. Street Brawl нельзя перебрасывать. Новый предмет также подчиняется общим ограничениям пула и уникальности серии.</p>
+        </section>
+
+        <section>
+          <h3>⭐ 6. Street Brawl — особые предметы</h3>
+          <p>Street Brawl входит в общий пул предметов, но такие карточки <b>нельзя банить, перебрасывать или раскрывать разведкой</b>.</p>
+          <p><b>Раунд 3:</b> в драфте появляются ровно <b>2 предмета Street Brawl</b> — по одному для каждой команды.</p>
+          <p><b>Раунд 5:</b> выдаётся достаточное количество предметов Street Brawl, чтобы каждый игрок, ещё не получивший такой предмет в третьем раунде, получил по одному.</p>
+        </section>
+
+        <section>
+          <h3>🖥️ 7. Консольные команды перед раундом</h3>
+          <p>После драфта нажмите <b>«Команды» / «Копировать команды»</b>. Сайт формирует команды для выбранных героев и предметов. В кастомном лобби должны быть включены читы; вставляйте команды в игровую консоль перед началом соответствующего раунда.</p>
+        </section>
+
+        <section>
+          <h3>⚖️ 8. Правила самой игры</h3>
+          <p><b>Очки способностей:</b> если в процессе раунда вы получили очко прокачки, вы не имеете права его использовать. Можно использовать только очки, выданные с помощью консоли.</p>
+          <p><b>Предметы:</b> не покупайте дополнительные предметы в магазине — играйте предметами, полученными через драфт.</p>
+          <p><b>Линия:</b> игра проходит исключительно на синей линии; не сражайтесь за Рифт.</p>
+          <p><b>Баффы:</b> баффы, появляющиеся на пятой минуте, разрешено забирать.</p>
+          <p><b>Мид-босс:</b> становится доступен после того, как хотя бы одна команда уничтожит вражеского шагохода.</p>
+        </section>
+
+        <section>
+          <h3>🔁 9. Переход между раундами</h3>
+          <p>После завершения игры отметьте победившую команду на сайте и перейдите к следующему раунду. Драфт героев не повторяется; предметы и баны сохраняются в пределах серии, а доступный тир продолжает повышаться. Начинайте новую серию только через кнопку <b>«Новый матч»</b>.</p>
+        </section>
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 22px;">
+        <button class="btn btn-accent" onclick="closeHowToPlayModal()">Понятно!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VICTORY MODAL -->
+  <div class="modal-overlay" id="victoryModal" style="display: none;">
+    <div class="modal-card">
+      <div style="font-size: 3rem;">🏆</div>
+      <div>
+        <h2 class="modal-title" id="victoryTitle" style="color: #f59e0b;">ПОБЕДА В СЕРИИ!</h2>
+        <p style="color: var(--text-muted); font-size: 1rem; margin-top: 6px;" id="victorySubtitle">Команда одержала 3 победы в серии Bo5</p>
+      </div>
+      
+      <div style="display: flex; justify-content: center; gap: 12px; margin-top: 10px; flex-wrap: wrap;">
+        <button class="btn btn-command" onclick="openCommandsModal()">📋 Консольные команды серии</button>
+        <button class="btn btn-accent" onclick="startNewMatchPrompt()">⚡ Начать новый матч</button>
+        <button class="btn" onclick="exportMatchJson()">⬇ Сохранить отчёт (JSON)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox">Уведомление</div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script src="app.js"></script>
+</body>
+</html>
