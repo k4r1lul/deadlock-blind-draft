@@ -1579,7 +1579,7 @@ function generateConsoleCommandsText(targetRound = null) {
           }
 
           if (itemCmds.length > 0) {
-            const singleLineCommand = [goldCmd, ...itemCmds].join('; ');
+            const singleLineCommand = ['citadel_unlock_flex_slots', goldCmd, ...itemCmds].join('; ');
             roundLines.push(`\n// ${teamName} — ${h.name} (${heroItemsAtRound.length} предм.) [${itemDescriptions.join(', ')}]`);
             roundLines.push(singleLineCommand);
             roundHasCommands = true;
@@ -1655,7 +1655,7 @@ function copyHeroCommandsForRound(teamKey, heroId, roundNum) {
     if (cmd) itemCmds.push(cmd);
   }
 
-  const singleLine = [goldCmd, ...itemCmds].join('; ');
+  const singleLine = ['citadel_unlock_flex_slots', goldCmd, ...itemCmds].join('; ');
   copyToClipboard(singleLine).then(ok => {
     if (ok) showToast(`Строка для ${hero.name} (Р${roundNum}, ${activeItems.length} предм.) скопирована!`);
   });
