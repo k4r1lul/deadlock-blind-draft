@@ -84,7 +84,7 @@ const EMBEDDED_ITEMS_FALLBACK = [
   {"id":"hollow_point","name":"Hollow Point","tier":3,"category":"Gun","image":"images/hollow_point.webp","console_command":"giveitem upgrade_hollow_point_rounds","requires_ability_slot":false,"is_active":false},
   {"id":"hunters_aura","name":"Hunter's Aura","tier":3,"category":"Gun","image":"images/hunters_aura.webp","console_command":"giveitem upgrade_bullet_armor_reduction_aura","requires_ability_slot":false,"is_active":false},
   {"id":"point_blank","name":"Point Blank","tier":3,"category":"Gun","image":"images/point_blank.webp","console_command":"giveitem upgrade_close_quarter_combat","requires_ability_slot":false,"is_active":false},
-  {"id":"shadow_weave","name":"Shadow Weave","tier":3,"category":"Gun","image":"images/shadow_weave.webp","console_command":"giveitem upgrade_cloaking_device_active","requires_ability_slot":false,"is_active":false},
+  {"id":"shadow_weave","name":"Shadow Weave","tier":3,"category":"Gun","image":"images/shadow_weave.webp","console_command":"giveitem upgrade_cloaking_device_active","requires_ability_slot":false,"is_active":true},
   {"id":"sharpshooter","name":"Sharpshooter","tier":3,"category":"Gun","image":"images/sharpshooter.webp","console_command":"giveitem upgrade_sharpshooter","requires_ability_slot":false,"is_active":false},
   {"id":"spirit_rend","name":"Spirit Rend","tier":3,"category":"Gun","image":"images/spirit_rend.webp","console_command":"giveitem upgrade_spellslinger_headshots","requires_ability_slot":false,"is_active":false},
   {"id":"tesla_bullets","name":"Tesla Bullets","tier":3,"category":"Gun","image":"images/tesla_bullets.webp","console_command":"giveitem upgrade_chain_lightning","requires_ability_slot":false,"is_active":false},
