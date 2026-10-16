@@ -493,6 +493,16 @@ window.addEventListener('DOMContentLoaded', async () => {
       const parsed = JSON.parse(saved);
       if (parsed && parsed.characterDraft && parsed.characterDraft.sequence && parsed.characterDraft.sequence.length > 0) {
         state = parsed;
+        if (state.activePhase === 'character_draft') {
+          // Новая версия драфта героев: без банов, реролла и разведки.
+          state.characterDraft.sequence = buildCharacterDraftSequence(state.characterDraft.mode || '2x2');
+          state.characterDraft.stepIndex = 0;
+          state.characterDraft.bans = { team1: [], team2: [] };
+          state.characterDraft.picks = { team1: [], team2: [] };
+          state.characterDraft.completed = false;
+          state.characterDraft.history = [];
+          state.actionStack = (state.actionStack || []).filter(a => a.phase !== 'character_draft');
+        }
         if (state.roundState) {
           if (!state.roundState.rerollsUsed) state.roundState.rerollsUsed = { team1: 0, team2: 0 };
           if (!state.roundState.rerolledGridItemIds) state.roundState.rerolledGridItemIds = [];
@@ -554,39 +564,25 @@ function saveState() {
 }
 
 function buildCharacterDraftSequence(mode) {
-  let seq = [];
-  let step = 1;
-  seq.push({ step: step++, team: 1, type: 'ban' });
-  seq.push({ step: step++, team: 2, type: 'ban' });
-  seq.push({ step: step++, team: 1, type: 'ban' });
-  seq.push({ step: step++, team: 2, type: 'ban' });
+  const picks = mode === '1x1' ? [1, 2]
+    : mode === '2x2' ? [1, 2, 2, 1]
+    : mode === '3x3' ? [1, 2, 2, 1, 1, 2]
+    : [1, 2, 2, 1, 1, 2, 2, 1];
+  return picks.map((team, index) => ({ step: index + 1, team, type: 'pick' }));
+}
 
-  if (mode === '1x1') {
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-  } else if (mode === '2x2') {
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 1, type: 'pick' });
-  } else if (mode === '3x3') {
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-  } else if (mode === '4x4') {
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 1, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 2, type: 'pick' });
-    seq.push({ step: step++, team: 1, type: 'pick' });
-  }
-  return seq;
+const ROLE_TRANSLATIONS = {
+  Assassin: 'Убийца', Tank: 'Танк', Brawler: 'Боец', Skirmisher: 'Застрельщик',
+  Support: 'Поддержка', Controller: 'Контролёр', Disruptor: 'Дезорганизатор',
+  Gunner: 'Стрелок', Marksman: 'Меткий стрелок', Sniper: 'Снайпер', Carry: 'Керри',
+  Initiator: 'Инициатор', Nuker: 'Маг взрывного урона', Mage: 'Маг', Enchanter: 'Усилитель',
+  Tactician: 'Тактик', Pusher: 'Специалист по сносу построек', Flanker: 'Обходчик',
+  Harasser: 'Преследователь', DoT: 'Урон со временем', Drainer: 'Истощатель',
+  Teleporter: 'Телепортер', Trickster: 'Обманщик', Strategist: 'Стратег', Enforcer: 'Каратель'
+};
+
+function getLocalizedHeroRole(hero) {
+  return String(hero?.role || 'Неизвестная роль').split(' / ').map(role => ROLE_TRANSLATIONS[role.trim()] || role.trim()).join(' / ');
 }
 
 function getHeroGridSize(mode) {
@@ -1131,36 +1127,25 @@ function initItemRound(roundNum) {
 
 function getHeroStatus(heroId) {
   const cd = state.characterDraft;
-  if (cd.bans.team1.some(h => h.id === heroId)) return { status: 'banned', team: 1 };
-  if (cd.bans.team2.some(h => h.id === heroId)) return { status: 'banned', team: 2 };
   if (cd.picks.team1.some(h => h.id === heroId)) return { status: 'picked', team: 1 };
   if (cd.picks.team2.some(h => h.id === heroId)) return { status: 'picked', team: 2 };
   return null;
 }
 
 function handleHeroCardClick(hero) {
-  if (state.characterDraft.completed) return;
-  if (state.characterDraft.stepIndex >= state.characterDraft.sequence.length) return;
+  if (state.characterDraft.completed || state.characterDraft.stepIndex >= state.characterDraft.sequence.length) return;
   if (getHeroStatus(hero.id)) return;
-
   const currentTurn = state.characterDraft.sequence[state.characterDraft.stepIndex];
+  if (!currentTurn || currentTurn.type !== 'pick') return;
 
-  if (currentTurn.type === 'ban') {
-    state.characterDraft.bans[`team${currentTurn.team}`].push(hero);
-    state.characterDraft.history.unshift({ step: currentTurn.step, team: currentTurn.team, type: 'ban', hero });
-    state.actionStack.push({ phase: 'character_draft', type: 'HERO_BAN', hero, turn: currentTurn });
-  } else {
-    state.characterDraft.picks[`team${currentTurn.team}`].push(hero);
-    state.characterDraft.history.unshift({ step: currentTurn.step, team: currentTurn.team, type: 'pick', hero });
-    state.actionStack.push({ phase: 'character_draft', type: 'HERO_PICK', hero, turn: currentTurn });
-  }
-
+  state.characterDraft.picks[`team${currentTurn.team}`].push(hero);
+  state.characterDraft.history.unshift({ step: currentTurn.step, team: currentTurn.team, type: 'pick', hero });
+  state.actionStack.push({ phase: 'character_draft', type: 'HERO_PICK', hero, turn: currentTurn });
   state.characterDraft.stepIndex++;
   if (state.characterDraft.stepIndex >= state.characterDraft.sequence.length) {
     state.characterDraft.completed = true;
-    showToast('Драфт персонажей завершён!');
+    showToast('Драфт героев завершён!');
   }
-
   saveState();
   renderAll();
 }
@@ -1891,16 +1876,16 @@ function renderBanners() {
 
   if (state.activePhase === 'character_draft') {
     pBadge.textContent = 'ДРАФТ ПЕРСОНАЖЕЙ';
-    const picksCount = (state.characterDraft.mode === '1x1') ? 2 : (state.characterDraft.mode === '3x3' ? 6 : 4);
-    pDesc.textContent = `Случайный пул героев на всю серию Bo5 • 4 бана и ${picksCount} пиков`;
+    const picksCount = ({ '1x1': 2, '2x2': 4, '3x3': 6, '4x4': 8 })[state.characterDraft.mode] || 4;
+    pDesc.textContent = `Скрытый драфт героев • ${picksCount} пиков • оставшиеся карточки откроются после формирования команд`;
     
     const totalInPool = state.characterDraft.gridHeroes ? state.characterDraft.gridHeroes.length : heroesCatalog.length;
-    const availableInPool = totalInPool - state.characterDraft.stepIndex;
+    const availableInPool = totalInPool - state.characterDraft.picks.team1.length - state.characterDraft.picks.team2.length;
     cBadge.textContent = `Доступно в пуле: ${Math.max(0, availableInPool)} / ${totalInPool}`;
 
     catGroup.style.display = 'none';
     tierGroup.style.display = 'none';
-    btnRerollHero.style.display = (state.characterDraft.stepIndex === 0) ? 'inline-flex' : 'none';
+    btnRerollHero.style.display = 'none';
   } else {
     btnRerollHero.style.display = 'none';
     catGroup.style.display = 'flex';
@@ -1959,7 +1944,7 @@ function renderTeamsWithTurnHighlight() {
     if (!box) return;
     const rerolls = getTeamRerollsRemaining(teamNum);
     const scouts = getScoutTokens(teamNum);
-    box.innerHTML = `<div class="resource-pill"><span class="resource-label"><span aria-hidden="true">🎲</span> Рероллы</span><span class="resource-value">${rerolls}</span></div><div class="resource-pill"><span class="resource-label"><span aria-hidden="true">🔎</span> Разведка</span><span class="resource-value">${scouts}</span></div>`;
+    box.innerHTML = state.activePhase === 'character_draft' ? '' : `<div class="resource-pill"><span class="resource-label"><span aria-hidden="true">🎲</span> Рероллы</span><span class="resource-value">${rerolls}</span></div><div class="resource-pill"><span class="resource-label"><span aria-hidden="true">🔎</span> Разведка</span><span class="resource-value">${scouts}</span></div>`;
   });
 
   p1.classList.remove('is-active-turn', 'is-waiting');
@@ -2017,6 +2002,12 @@ function renderTeamsWithTurnHighlight() {
 }
 
 function renderCharacterDraftSidebars() {
+  [1, 2].forEach(team => {
+    const resources = document.getElementById(`t${team}Resources`);
+    if (resources) resources.style.display = 'none';
+    const bans = document.getElementById(`t${team}BansContainer`);
+    if (bans) bans.parentElement.style.display = 'none';
+  });
   const mode = state.characterDraft.mode;
     const heroLimit = {
     '1x1': 1,
@@ -2074,6 +2065,12 @@ function renderHeroDraftSlots(containerId, picks, limit) {
 }
 
 function renderItemDraftSidebars() {
+  [1, 2].forEach(team => {
+    const resources = document.getElementById(`t${team}Resources`);
+    if (resources) resources.style.display = '';
+    const bans = document.getElementById(`t${team}BansContainer`);
+    if (bans) bans.parentElement.style.display = '';
+  });
   document.getElementById('t1RosterTitle').textContent = 'Герои и инвентарь';
   document.getElementById('t2RosterTitle').textContent = 'Герои и инвентарь';
   document.getElementById('t1BansTitle').textContent = 'Баны раунда';
@@ -2215,62 +2212,52 @@ function renderGrid() {
 }
 
 function renderHeroGrid(grid) {
-  const cols = (state.characterDraft.mode === '3x3') ? 5 : 4;
+  const cols = (state.characterDraft.mode === '3x3' || state.characterDraft.mode === '4x4') ? 5 : 4;
   grid.style.setProperty('--grid-cols', cols);
-
-  const query = searchQuery;
   const pool = (state.characterDraft.gridHeroes && state.characterDraft.gridHeroes.length > 0)
-    ? state.characterDraft.gridHeroes
-    : heroesCatalog;
-
-  const heroes = pool.filter(h => !query || h.name.toLowerCase().includes(query));
-
-  let delayIndices = heroes.map((_, i) => i);
+    ? state.characterDraft.gridHeroes : heroesCatalog;
+  const query = (searchQuery || '').toLocaleLowerCase('ru');
+  const heroes = pool.filter(h => {
+    const status = getHeroStatus(h.id);
+    // Пока драфт не завершён, поиск не должен раскрывать скрытые имена.
+    return !query || ((status || state.characterDraft.completed) && h.name.toLocaleLowerCase('ru').includes(query));
+  });
+  const delayIndices = heroes.map((_, i) => i);
   shuffleArray(delayIndices);
-
   heroes.forEach((hero, index) => {
     const card = document.createElement('div');
+    const status = getHeroStatus(hero.id);
+    const picked = Boolean(status && status.status === 'picked');
+    // Выбранные герои раскрываются сразу, все остальные — только после формирования обеих команд.
+    const revealed = picked || state.characterDraft.completed;
     const flipClass = shouldAnimateFlip ? 'flip-entrance' : '';
     const flipDelay = (delayIndices[index] * 0.04).toFixed(3);
-
-    const status = getHeroStatus(hero.id);
-    let usedClasses = '';
-    let badgeHtml = '';
-
-    if (status) {
-      if (status.status === 'banned') {
-        usedClasses = 'used banned';
-        badgeHtml = `<div class="card-status-badge ban-badge"><span class="status-badge-text">БАН</span><span class="status-badge-sub">Команда ${status.team}</span></div>`;
-      } else {
-        usedClasses = `used picked-team${status.team}`;
-        badgeHtml = `<div class="card-status-badge pick-badge team${status.team}"><span class="status-badge-text">ПИК</span><span class="status-badge-sub">Команда ${status.team}</span></div>`;
-      }
-    }
-
-    const chargesTag = '';
-
-    card.className = `item-card category-Hero ${usedClasses} ${flipClass} ${state.characterDraft.completed ? 'draft-finished' : ''}`;
+    const usedClasses = picked ? `used picked-team${status.team}` : '';
+    const badgeHtml = picked ? `<div class="card-status-badge pick-badge team${status.team}"><span class="status-badge-text">ВЫБРАН</span><span class="status-badge-sub">Команда ${status.team}</span></div>` : '';
+    card.className = `item-card category-Hero hero-role-hidden-card ${revealed ? 'hero-card-revealed' : 'hero-card-hidden'} ${usedClasses} ${flipClass} ${state.characterDraft.completed ? 'draft-finished' : ''}`;
     card.style.setProperty('--flip-delay', `${flipDelay}s`);
-    card.innerHTML = `
+    card.innerHTML = revealed ? `
       <div class="card-thumb-wrap">
-        <div class="card-badges-wrap">${chargesTag}</div>
-        <span class="hero-thumb-initials" style="font-size:1.4rem;" aria-hidden="true"></span>
+        <div class="card-badges-wrap"></div>
+        <span class="hero-thumb-initials" aria-hidden="true"></span>
         <img class="card-img" src="${hero.image}" alt="" loading="lazy" onerror="this.remove()">
         ${badgeHtml}
       </div>
       <div class="card-name" title="${hero.name}">${hero.name}</div>
+    ` : `
+      <div class="card-thumb-wrap hero-card-back" aria-label="Скрытый герой">
+        <div class="hero-card-back-mark" aria-hidden="true">?</div>
+      </div>
+      <div class="card-name hero-card-back-label">Скрытый герой</div>
     `;
-
-    const heroTurn = (!state.characterDraft.completed && state.characterDraft.sequence)
-      ? state.characterDraft.sequence[state.characterDraft.stepIndex] : null;
-    card.dataset.actionHint = status ? `УЖЕ ${status.status === 'banned' ? 'ЗАБАНЕН' : 'ВЫБРАН'} • ${status.team === 1 ? 'THE HIDDEN KING' : 'THE ARCHMOTHER'}`
+    const turn = (!state.characterDraft.completed) ? state.characterDraft.sequence[state.characterDraft.stepIndex] : null;
+    card.dataset.actionHint = picked ? `ВЫБРАН • КОМАНДА ${status.team}`
       : state.characterDraft.completed ? 'ДРАФТ ЗАВЕРШЁН'
-      : heroTurn ? `${heroTurn.type === 'ban' ? '🚫 ЗАБАНИТЬ' : '🛡️ ВЫБРАТЬ'} • ${heroTurn.team === 1 ? 'THE HIDDEN KING' : 'THE ARCHMOTHER'}` : 'НЕТ АКТИВНОГО ХОДА';
+      : turn ? `ВЫБРАТЬ • ${turn.team === 1 ? 'THE HIDDEN KING' : 'THE ARCHMOTHER'}` : 'НЕТ АКТИВНОГО ХОДА';
     card.classList.add('has-action-hint');
     card.addEventListener('click', () => handleHeroCardClick(hero));
     grid.appendChild(card);
   });
-
   shouldAnimateFlip = false;
 }
 
