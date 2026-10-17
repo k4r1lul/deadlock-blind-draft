@@ -386,7 +386,7 @@ function checkItemHeroCompatibility(hero, item, teamNumber = null) {
   return { compatible: true, itemToReplace: itemToReplace };
 }
 
-const CATEGORY_NAMES = { 'Gun': 'Оружие', 'Vitality': 'Выживаемость', 'Spirit': 'Способности' };
+const CATEGORY_NAMES = { 'Gun': 'Оружие', 'Vitality': 'Здоровье', 'Spirit': 'Спирит' };
 
 /* ==========================================================================
    ПРАВИЛА ПРОГРЕССИИ ТИРОВ
