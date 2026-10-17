@@ -2268,7 +2268,7 @@ function getTeamSize(teamNum) {
 }
 
 function getScoutTokens(teamNum) {
-  if (!state.series.scouting) state.series.scouting = { team1: getTeamSize(1) * 3, team2: getTeamSize(2) * 3 };
+  if (!state.series.scouting) state.series.scouting = { team1: getTeamSize(1) * 6, team2: getTeamSize(2) * 6 };
   return Math.max(0, Number(state.series.scouting[`team${teamNum}`] || 0));
 }
 
