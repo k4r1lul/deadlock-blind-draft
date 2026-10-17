@@ -45,7 +45,7 @@ const EMBEDDED_HEROES_FALLBACK = [
   {"id":"warden","name":"Warden","role":"Tank / Enforcer","image":"images/heroes/warden.webp","has_ability_charges":false},
   {"id":"wraith","name":"Wraith","role":"Gunner / Assassin","image":"images/heroes/wraith.webp","has_ability_charges":true},
   {"id":"yamato","name":"Yamato","role":"Assassin / Brawler","image":"images/heroes/yamato.webp","has_ability_charges":true},
-  {"id":"violet","name":"Viloet","role":"Caster / Controller","image":"images/heroes/violet.webp","has_ability_charges":true}
+  {"id":"violet","name":"Violet","role":"Caster / Controller","image":"images/heroes/violet.webp","has_ability_charges":true}
 ];
 
 const EMBEDDED_ITEMS_FALLBACK = [
